@@ -50,7 +50,7 @@ function router(): void {
   }
 
   if (hash === "/create") {
-    renderCreate(app, { onTest: goTest });
+    renderCreate(app, { onTest: goTest, onHome: goHome });
     return;
   }
 

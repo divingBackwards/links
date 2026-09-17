@@ -3,6 +3,7 @@ import { loadDraft, saveDraft, clearDraft, type Draft } from "../storage";
 
 export interface CreateOptions {
   onTest: (puzzle: Puzzle) => void;
+  onHome: () => void;
 }
 
 function today(): string {
@@ -115,11 +116,16 @@ export function renderCreate(container: HTMLElement, opts: CreateOptions): void 
 
   const btnRow = document.createElement("div");
   btnRow.className = "btn-row";
+  const homeBtn = document.createElement("button");
+  homeBtn.type = "button";
+  homeBtn.className = "btn";
+  homeBtn.textContent = "Home";
+  homeBtn.addEventListener("click", opts.onHome);
   const submitBtn = document.createElement("button");
   submitBtn.type = "submit";
   submitBtn.className = "btn btn-primary";
   submitBtn.textContent = "Submit";
-  btnRow.append(submitBtn);
+  btnRow.append(homeBtn, submitBtn);
 
   form.append(errorText, btnRow);
   container.append(form);

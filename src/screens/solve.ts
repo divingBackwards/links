@@ -128,23 +128,31 @@ export function renderSolve(
   function render(): void {
     container.innerHTML = "";
 
+    const header = el("div", "header");
+
     if (opts.selfTest) {
       const topBar = el("div", "top-bar");
-      topBar.append(button("Edit", opts.onEdit), button("Share", shareLink, "btn-primary"));
-      container.append(topBar);
+      topBar.append(
+        button("Home", opts.onHome),
+        button("Edit", opts.onEdit),
+        button("Share", shareLink, "btn-primary"),
+      );
+      header.append(topBar);
 
       const badge = el("p", "meta-line");
-      badge.textContent = "Self-test — unlimited mistakes, nothing is shared yet";
-      container.append(badge);
+      badge.textContent = "Test your puzzle, then share the link with your friends!";
+      header.append(badge);
     }
 
     const title = el("h1", "page-title");
     title.textContent = puzzle.puzzleTitle;
-    container.append(title);
+    header.append(title);
 
     const meta = el("p", "meta-line");
     meta.textContent = `by ${puzzle.createdBy} · ${puzzle.createdDate}`;
-    container.append(meta);
+    header.append(meta);
+
+    container.append(header);
 
     const banners = el("div", "banners");
     for (const gi of solvedOrder) banners.append(renderBanner(gi));
@@ -160,17 +168,15 @@ export function renderSolve(
       toast.textContent = toastMessage || " ";
       container.append(toast);
 
-      const mistakesRow = el("div", "mistakes-row");
       if (Number.isFinite(maxMistakes)) {
+        const mistakesRow = el("div", "mistakes-row");
         const label = document.createElement("span");
         label.textContent = "Mistakes Remaining:";
         const pips = el("div", "pips");
         for (let i = 0; i < maxMistakes - mistakes; i++) pips.append(el("span", "pip"));
         mistakesRow.append(label, pips);
-      } else {
-        mistakesRow.textContent = "Unlimited mistakes (self-test)";
+        container.append(mistakesRow);
       }
-      container.append(mistakesRow);
 
       if (!gameOver) {
         const btnRow = el("div", "btn-row");
