@@ -2,7 +2,7 @@ export const GROUP_COLORS = ["yellow", "green", "blue", "purple"] as const;
 export type GroupColor = (typeof GROUP_COLORS)[number];
 
 export const THEME_MAX_LENGTH = 32;
-export const MEMBER_MAX_LENGTH = 12;
+export const MEMBER_MAX_LENGTH = 15;
 
 export interface PuzzleGroup {
   theme: string;

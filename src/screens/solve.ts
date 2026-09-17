@@ -1,5 +1,6 @@
 import { GROUP_COLORS, type Puzzle } from "../types";
 import { encodePuzzle } from "../encode";
+import { fitTextToOneLine } from "../fitText";
 
 interface Tile {
   id: string;
@@ -28,6 +29,7 @@ export function renderSolve(
   let mistakes = 0;
   let gameOver: "won" | "lost" | null = null;
   let revealedLoss = false;
+  let modalDismissed = false;
   let toastMessage = "";
   let shakeIds = new Set<string>();
 
@@ -105,9 +107,15 @@ export function renderSolve(
 
   function revealLoss(): void {
     revealedLoss = true;
+    modalDismissed = true;
     const remaining = GROUP_COLORS.map((_, i) => i).filter((i) => !solvedOrder.includes(i));
     solvedOrder = [...solvedOrder, ...remaining];
     tiles = [];
+    render();
+  }
+
+  function dismissModal(): void {
+    modalDismissed = true;
     render();
   }
 
@@ -146,6 +154,7 @@ export function renderSolve(
       const grid = el("div", "grid");
       for (const t of tiles) grid.append(renderTile(t));
       container.append(grid);
+      grid.querySelectorAll<HTMLElement>(".tile").forEach(fitTextToOneLine);
 
       const toast = el("div", "toast" + (toastMessage ? " visible" : ""));
       toast.textContent = toastMessage || " ";
@@ -163,26 +172,37 @@ export function renderSolve(
       }
       container.append(mistakesRow);
 
-      const btnRow = el("div", "btn-row");
-      const shuffleBtn = button("Shuffle", doShuffle);
-      const deselectBtn = button("Deselect All", deselectAll);
-      deselectBtn.disabled = selected.size === 0;
-      const submitBtn = button("Submit", submit, "btn-primary");
-      submitBtn.disabled = selected.size !== 4;
-      btnRow.append(shuffleBtn, deselectBtn, submitBtn);
-      container.append(btnRow);
+      if (!gameOver) {
+        const btnRow = el("div", "btn-row");
+        const shuffleBtn = button("Shuffle", doShuffle);
+        const deselectBtn = button("Deselect All", deselectAll);
+        deselectBtn.disabled = selected.size === 0;
+        const submitBtn = button("Submit", submit, "btn-primary");
+        submitBtn.disabled = selected.size !== 4;
+        btnRow.append(shuffleBtn, deselectBtn, submitBtn);
+        container.append(btnRow);
+      }
     }
 
-    if (gameOver === "won") {
-      container.append(
-        renderEndModal("You solved it!", "Nicely done — every group found."),
-      );
-    } else if (gameOver === "lost" && !revealedLoss) {
+    if (gameOver) {
+      // Always reachable in the page itself — never only inside the modal — so a
+      // dismissed or backgrounded modal never blocks Reveal / Home / Share.
+      const endRow = el("div", "btn-row");
+      if (gameOver === "lost" && !revealedLoss) {
+        endRow.append(button("Reveal unsolved groups", revealLoss, "btn-primary"));
+      } else {
+        endRow.append(
+          button("Home", opts.onHome),
+          button("Make your own puzzle", opts.onMakeYourOwn, "btn-primary"),
+        );
+      }
+      container.append(endRow);
+    }
+
+    if (gameOver === "won" && !modalDismissed) {
+      container.append(renderEndModal("You solved it!", "Nicely done — every group found."));
+    } else if (gameOver === "lost" && !revealedLoss && !modalDismissed) {
       container.append(renderLossModal());
-    } else if (gameOver === "lost" && revealedLoss) {
-      container.append(
-        renderEndModal("Better luck next time!", "Here's how the puzzle breaks down."),
-      );
     }
   }
 
@@ -211,29 +231,43 @@ export function renderSolve(
 
   function renderLossModal(): HTMLDivElement {
     const backdrop = el("div", "modal-backdrop");
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) dismissModal();
+    });
     const modal = el("div", "modal");
+    modal.append(closeButton());
     const h2 = document.createElement("h2");
     h2.textContent = "Better luck next time!";
-    modal.append(h2, button("Reveal unsolved groups", revealLoss, "btn-primary"));
+    const p = document.createElement("p");
+    p.textContent = "Close this to see the board, or reveal the groups now.";
+    modal.append(h2, p, button("Reveal unsolved groups", revealLoss, "btn-primary"));
     backdrop.append(modal);
     return backdrop;
   }
 
   function renderEndModal(heading: string, sub: string): HTMLDivElement {
     const backdrop = el("div", "modal-backdrop");
+    backdrop.addEventListener("click", (e) => {
+      if (e.target === backdrop) dismissModal();
+    });
     const modal = el("div", "modal");
+    modal.append(closeButton());
     const h2 = document.createElement("h2");
     h2.textContent = heading;
     const p = document.createElement("p");
     p.textContent = sub;
-    const row = el("div", "btn-row");
-    row.append(
-      button("Home", opts.onHome),
-      button("Make your own puzzle", opts.onMakeYourOwn, "btn-primary"),
-    );
-    modal.append(h2, p, row);
+    modal.append(h2, p);
     backdrop.append(modal);
     return backdrop;
+  }
+
+  function closeButton(): HTMLButtonElement {
+    const btn = document.createElement("button");
+    btn.className = "modal-close";
+    btn.setAttribute("aria-label", "Close");
+    btn.textContent = "×";
+    btn.addEventListener("click", dismissModal);
+    return btn;
   }
 
   function button(label: string, onClick: () => void, extraClass = ""): HTMLButtonElement {

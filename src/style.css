@@ -258,6 +258,7 @@ p.page-subtitle {
 }
 
 .modal {
+  position: relative;
   background: #fff;
   border-radius: 1rem;
   padding: 2rem 1.5rem;
@@ -271,6 +272,30 @@ p.page-subtitle {
 
 .modal h2 {
   margin: 0;
+}
+
+.modal p {
+  margin: 0;
+  color: #555;
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  background: var(--color-tile-bg);
 }
 
 /* --- Create form --- */
