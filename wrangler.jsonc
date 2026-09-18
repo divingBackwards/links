@@ -10,9 +10,7 @@
   "kv_namespaces": [
     {
       "binding": "PUZZLES",
-      // Placeholder — replace with a real namespace id before deploying.
-      // Create one with: npx wrangler kv namespace create PUZZLES
-      "id": "00000000000000000000000000000000"
+      "id": "d496312f0f8b4e97ac94d969c72bd2a7"
     }
   ],
   "observability": {
