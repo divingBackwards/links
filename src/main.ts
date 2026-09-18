@@ -3,20 +3,26 @@ import { renderLanding } from "./screens/landing";
 import { renderCreate } from "./screens/create";
 import { renderSolve } from "./screens/solve";
 import { decodePuzzle, encodePuzzle } from "./encode";
+import { fetchPuzzleByCode } from "./api";
 import type { Puzzle } from "./types";
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 function goHome(): void {
-  location.hash = "#/";
+  location.assign("/");
 }
 
 function goCreate(): void {
-  location.hash = "#/create";
+  location.assign("/#/create");
 }
 
-function goPlay(encoded: string): void {
+function goPlayLegacy(encoded: string): void {
   location.hash = `#/play/${encoded}`;
+}
+
+function goPlayShort(code: string): void {
+  // A real navigation (not a hash change) so the URL itself is the short, shareable link.
+  location.assign(`/p/${code}`);
 }
 
 function goTest(puzzle: Puzzle): void {
@@ -41,11 +47,39 @@ function renderError(message: string): void {
   app.append(h1, p, row);
 }
 
+function renderLoading(): void {
+  app.innerHTML = "";
+  const p = document.createElement("p");
+  p.className = "page-subtitle";
+  p.textContent = "Loading puzzle…";
+  app.append(p);
+}
+
+async function loadShortLink(code: string): Promise<void> {
+  renderLoading();
+  let puzzle: Puzzle | null;
+  try {
+    puzzle = await fetchPuzzleByCode(code);
+  } catch {
+    puzzle = null;
+  }
+  if (!puzzle) {
+    renderError("This puzzle link doesn't match anything we have. Ask whoever sent it to re-share it.");
+    return;
+  }
+  renderSolve(app, puzzle, {
+    selfTest: false,
+    onEdit: goCreate,
+    onHome: goHome,
+    onMakeYourOwn: goCreate,
+  });
+}
+
 function router(): void {
   const hash = location.hash.replace(/^#/, "") || "/";
 
   if (hash === "/" || hash === "") {
-    renderLanding(app, { onCreate: goCreate, onSolveLink: goPlay });
+    renderLanding(app, { onCreate: goCreate, onSolveShortLink: goPlayShort, onSolveLegacyLink: goPlayLegacy });
     return;
   }
 
@@ -86,8 +120,13 @@ function router(): void {
     return;
   }
 
-  renderLanding(app, { onCreate: goCreate, onSolveLink: goPlay });
+  renderLanding(app, { onCreate: goCreate, onSolveShortLink: goPlayShort, onSolveLegacyLink: goPlayLegacy });
 }
 
-window.addEventListener("hashchange", router);
-router();
+const shortLinkMatch = location.pathname.match(/^\/p\/([A-Za-z0-9]{4,12})$/);
+if (shortLinkMatch) {
+  loadShortLink(shortLinkMatch[1]);
+} else {
+  window.addEventListener("hashchange", router);
+  router();
+}

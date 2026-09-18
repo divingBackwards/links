@@ -5,3 +5,4 @@ dist-ssr
 .DS_Store
 *.tsbuildinfo
 .claude/scheduled_tasks.lock
+.wrangler

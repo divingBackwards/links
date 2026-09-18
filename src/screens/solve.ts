@@ -1,6 +1,6 @@
 import { GROUP_COLORS, type Puzzle } from "../types";
-import { encodePuzzle } from "../encode";
 import { fitTextToOneLine } from "../fitText";
+import { createShortLink } from "../api";
 
 interface Tile {
   id: string;
@@ -32,6 +32,8 @@ export function renderSolve(
   let modalDismissed = false;
   let toastMessage = "";
   let shakeIds = new Set<string>();
+  let sharing = false;
+  let shareError = "";
 
   render();
 
@@ -119,10 +121,22 @@ export function renderSolve(
     render();
   }
 
-  function shareLink(): void {
-    const url = `${location.origin}${location.pathname}#/play/${encodePuzzle(puzzle)}`;
-    navigator.clipboard?.writeText(url).catch(() => {});
-    window.alert(`Link copied to clipboard:\n${url}`);
+  async function shareLink(): Promise<void> {
+    if (sharing) return;
+    sharing = true;
+    shareError = "";
+    render();
+    try {
+      const code = await createShortLink(puzzle);
+      const url = `${location.origin}/p/${code}`;
+      navigator.clipboard?.writeText(url).catch(() => {});
+      window.alert(`Link copied to clipboard:\n${url}`);
+    } catch (err) {
+      shareError = err instanceof Error ? err.message : "Couldn't create a share link. Try again.";
+    } finally {
+      sharing = false;
+      render();
+    }
   }
 
   function render(): void {
@@ -132,16 +146,20 @@ export function renderSolve(
 
     if (opts.selfTest) {
       const topBar = el("div", "top-bar");
-      topBar.append(
-        button("Home", opts.onHome),
-        button("Edit", opts.onEdit),
-        button("Share", shareLink, "btn-primary"),
-      );
+      const shareBtn = button(sharing ? "Sharing…" : "Share", shareLink, "btn-primary");
+      shareBtn.disabled = sharing;
+      topBar.append(button("Home", opts.onHome), button("Edit", opts.onEdit), shareBtn);
       header.append(topBar);
 
       const badge = el("p", "meta-line");
       badge.textContent = "Test your puzzle, then share the link with your friends!";
       header.append(badge);
+
+      if (shareError) {
+        const err = el("p", "error-text");
+        err.textContent = shareError;
+        header.append(err);
+      }
     }
 
     const title = el("h1", "page-title");

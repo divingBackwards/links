@@ -1,14 +1,14 @@
 # Links
 
-A [NYT Connections](https://www.nytimes.com/games/connections)-style puzzle game for a small group of friends to create and share their own puzzles. No accounts, no backend — a puzzle's entire content lives in the URL itself.
+A [NYT Connections](https://www.nytimes.com/games/connections)-style puzzle game for a small group of friends to create and share their own puzzles.
 
 See [`reference/gameDescription.md`](reference/gameDescription.md) for the original spec, and the [Game Design Document](https://claude.ai/artifact/RA9cYRYt4gM81vunann8a6) for the full design.
 
 ## Stack
 
-- [Vite](https://vitejs.dev/) + vanilla TypeScript (no framework — two screens, no routing complexity)
-- [lz-string](https://github.com/pieroxy/lz-string) to compress a puzzle into a URL-safe fragment
-- No backend. Puzzles round-trip entirely through the URL.
+- [Vite](https://vitejs.dev/) + vanilla TypeScript (no framework — a handful of screens, no routing complexity)
+- A small Cloudflare Worker (`worker/index.ts`) backed by Workers KV for puzzle storage and short links
+- [lz-string](https://github.com/pieroxy/lz-string), used only for the local self-test flow (`#/test/<encoded>`) and to keep old long-form `#/play/<encoded>` links working
 
 ## Local development
 
@@ -17,25 +17,35 @@ npm install
 npm run dev
 ```
 
+`vite dev` runs the Worker locally too (via Miniflare), including a local, on-disk simulation of KV — no Cloudflare account needed for development.
+
 ## Build
 
 ```bash
 npm run build
 ```
 
-Outputs a static site to `dist/`.
+Outputs the static client to `dist/client/` and the Worker bundle to `dist/links/`.
 
-## Deploying to Cloudflare Pages
+## Deploying to Cloudflare Workers
 
-1. Push this repo to GitHub.
-2. In the Cloudflare dashboard: **Workers & Pages → Create → Pages → Connect to Git**, select this repo.
-3. Build settings:
-   - **Framework preset:** Vite
-   - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
-4. Deploy. Every push to `main` will auto-deploy.
-5. **Workers & Pages → your project → Custom domains** — add the domain you already manage in this Cloudflare account and follow the prompts (DNS records are added automatically since the domain is in the same account).
+This project deploys as a Worker with static assets (not classic Pages) — Cloudflare's git-connected "Workers & Pages → Connect to Git" flow handles the build and deploy automatically via `wrangler deploy`.
+
+**One-time setup before the first deploy:**
+
+1. Create the KV namespace this project needs:
+   ```bash
+   npx wrangler login
+   npx wrangler kv namespace create PUZZLES
+   ```
+2. Copy the `id` it prints into `wrangler.jsonc`'s `kv_namespaces[0].id`, replacing the placeholder, and commit that change.
+3. Push to GitHub — the connected Cloudflare project will build and deploy on push to `main`.
+4. **Workers & Pages → your project → Custom domains** — add your domain if not already attached.
 
 ## How puzzle sharing works
 
-A puzzle (title, author, date, and its 4 groups of 4) is serialized to JSON, compressed with lz-string, and placed in the URL hash: `#/play/<encoded>`. Opening that link decodes and reconstructs the puzzle entirely client-side — nothing is stored server-side. See `src/encode.ts`.
+- **Sharing a puzzle** (Share button in self-test): the puzzle JSON is POSTed to `/api/puzzles`, the Worker stores it in KV under a random 7-character code, and the returned link is `https://<domain>/p/<code>` — short and opaque regardless of puzzle content, which is what fixed links breaking when pasted into iMessage/SMS. Opening that link fetches `/api/puzzles/<code>` and renders the puzzle; nothing about its content is ever in the URL.
+- **Self-testing your own puzzle** (`#/test/<encoded>`) stays fully client-side — the puzzle is compressed with lz-string into the URL hash, no server round-trip, since it's never shared.
+- **Old long-form links** (`#/play/<encoded>`) still decode client-side for backward compatibility with anything already shared before this change.
+
+See `worker/index.ts` for the API, and `src/api.ts` / `src/encode.ts` on the client side.

@@ -1,8 +1,10 @@
 import { extractEncodedPayload, decodePuzzle } from "../encode";
+import { extractShortCode } from "../api";
 
 export interface LandingOptions {
   onCreate: () => void;
-  onSolveLink: (encoded: string) => void;
+  onSolveShortLink: (code: string) => void;
+  onSolveLegacyLink: (encoded: string) => void;
 }
 
 export function renderLanding(container: HTMLElement, opts: LandingOptions): void {
@@ -44,13 +46,20 @@ export function renderLanding(container: HTMLElement, opts: LandingOptions): voi
   goBtn.className = "btn btn-primary";
   goBtn.textContent = "Go";
   goBtn.addEventListener("click", () => {
+    const shortCode = extractShortCode(pasteInput.value);
+    if (shortCode) {
+      pasteError.textContent = "";
+      opts.onSolveShortLink(shortCode);
+      return;
+    }
+
     const encoded = extractEncodedPayload(pasteInput.value);
     if (!encoded || !decodePuzzle(encoded)) {
       pasteError.textContent = "That doesn't look like a valid Links puzzle link.";
       return;
     }
     pasteError.textContent = "";
-    opts.onSolveLink(encoded);
+    opts.onSolveLegacyLink(encoded);
   });
 
   pasteRow.append(pasteInput, goBtn, pasteError);
